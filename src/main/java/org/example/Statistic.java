@@ -1,6 +1,9 @@
 package org.example;
 
+import com.aspose.cells.*;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xddf.usermodel.chart.*;
 import org.apache.poi.xssf.usermodel.*;
@@ -15,16 +18,18 @@ public class Statistic implements IOManager{
     private final ArrayList<ArrayList<Double>> relativeFrequencies = new ArrayList<>();
     private final ArrayList<ArrayList<Double>> variationArray = new ArrayList<>();
     private final HashMap<Double, Integer> frequencies = new HashMap<>();
-    int n, var;
+    int n;
     long m;
-    private String GroupName;
-    private String PersonName;
     double minX, maxX, h;
     Statistic(){}
 
     public void start(){
 
         Scanner scanner = new Scanner(System.in);
+
+        String GroupName;
+        String PersonName;
+        int var;
 
         System.out.print("Введите имя группы: ");
         GroupName = scanner.nextLine();
@@ -35,14 +40,23 @@ public class Statistic implements IOManager{
         readData( "./data/" + var + ".txt");
 
         XWPFDocument doc = new XWPFDocument();
+        XWPFParagraph titleParagraph = doc.createParagraph();
+        titleParagraph.setAlignment(ParagraphAlignment.RIGHT);
+        XWPFRun titleRun = titleParagraph.createRun();
+        titleRun.setFontFamily("Times New Roman");
+        titleRun.setFontSize(14);
+        titleRun.setText("Работу выполнил: " + PersonName);
+        titleRun.addBreak();
+        titleRun.setText("Группа: " + GroupName);
+        titleRun.addBreak();
+        titleRun.setText("Вариант: " + var);
+        titleRun.addBreak();
+
+
         XWPFParagraph par = doc.createParagraph();
         XWPFRun run = par.createRun();
         run.setFontFamily("Times New Roman");
         run.setFontSize(14);
-        run.setText("Работу выполнил: " + PersonName);
-        run.addBreak();
-        run.setText("Группа: " + GroupName);
-        run.addBreak();
 
         Collections.sort(selection);
         n = selection.size();
@@ -62,8 +76,8 @@ public class Statistic implements IOManager{
         run.addBreak();
 
 
-        System.out.println("3. Размах выборки = " + (maxX - minX));
-        run.setText("3. Размах выборки = " + (maxX - minX));
+        System.out.println("3. Размах выборки = " + Math.round((maxX - minX)*100)/100);
+        run.setText("3. Размах выборки = " + Math.round((maxX - minX)*100)/100);
         run.addBreak();
 
 
@@ -93,6 +107,7 @@ public class Statistic implements IOManager{
         run.setText("Вариационный ряд:");
         run.addBreak();
 
+
         XWPFTable table = doc.createTable(variationArray.get(0).size(), variationArray.size());
 
         for (int row = 0; row < variationArray.get(0).size(); row++) {
@@ -108,14 +123,18 @@ public class Statistic implements IOManager{
             }
             System.out.println();
         }
+
+        XWPFParagraph textParagraph2 = doc.createParagraph();
+        XWPFRun textRun2 = textParagraph2.createRun();
+
         System.out.print("""
                    Относительные частоты:
                    Среднее значение | Относительная частота
                    --------------------
                 """);
 
-        run.setText("Относительные частоты:");
-        run.addBreak();
+        textRun2.setText("Относительные частоты:");
+        textRun2.addBreak();
 
         XWPFTable table1 = doc.createTable(relativeFrequencies.get(0).size(), relativeFrequencies.size());
 
@@ -132,70 +151,80 @@ public class Statistic implements IOManager{
             }
             System.out.println();
         }
+
+        XWPFParagraph textParagraph4 = doc.createParagraph();
+        XWPFRun textRun4 = textParagraph4.createRun();
+
+        textRun4.setBold(true);
+        textRun4.setColor("FF0000");
+        textRun4.setFontSize(28);
+        textRun4.setText("ВСТАВИТЬ ДИАГРАММУ");
+        textRun4.addBreak();
+
+        XWPFParagraph textParagraph3 = doc.createParagraph();
+        XWPFRun textRun3 = textParagraph3.createRun();
+
         System.out.println("Строим гистограмму относительных частот: ");
-        run.setText("Гистограмма относительных частот:");
-        run.addBreak();
-        run.setText("ВСТАВИТЬ ДИАГРАММУ");
-        run.addBreak();
+        textRun3.setText("Гистограмма относительных частот:");
+        textRun3.addBreak();
 
         drawCharts(relativeFrequencies);
         System.out.println("6. Вычисляем точечные оценки параметров распределения: ");
-        run.setText("Относительные частоты:");
-        run.addBreak();
+        textRun3.setText("Относительные частоты:");
+        textRun3.addBreak();
 
-        double averageValue = CalculateAverageValue();
-        double variance = CalculateVariance(averageValue);
-        double fixedVariance = variance * ((double)n/(n-1));
+        double averageValue = (double) Math.round(CalculateAverageValue()*100)/100;
+        double variance = (double) Math.round(CalculateVariance(averageValue)*100)/100;
+        double fixedVariance =(double) Math.round(variance * ((double)n/(n-1))*100)/100;
         System.out.println("Выборочное среднее = " + averageValue + "\n" +
                 "Дисперсия = " + variance + "\n" +
                 "Исправленная выборочная дисперсия = " + fixedVariance);
 
-        run.setText("Выборочное среднее = " + averageValue);
-        run.addBreak();
-        run.setText("Дисперсия = " + variance);
-        run.addBreak();
-        run.setText("Исправленная выборочная дисперсия = " + fixedVariance);
-        run.addBreak();
+        textRun3.setText("Выборочное среднее = " + averageValue);
+        textRun3.addBreak();
+        textRun3.setText("Дисперсия = " + variance);
+        textRun3.addBreak();
+        textRun3.setText("Исправленная выборочная дисперсия = " + fixedVariance);
+        textRun3.addBreak();
 
-        double reliability = 0.9;
-        double[] StudentArray = {1.664, 1.662, 1.66, 1.658, 1.655, 1.645};
         ArrayList<Double> confidenceInterval = CalculateIntervalEstimation(averageValue, fixedVariance);
         System.out.println("7. Доверительный интервал для мат.ожидания = (" + confidenceInterval.get(0) + " ; " + confidenceInterval.get(1) + ")\n " +
                 "Доверительный интервал для среднего квадратичного отклонения = (" + confidenceInterval.get(2) + " ; " + confidenceInterval.get(3) + ")");
 
-        run.setText("7. Доверительный интервал для мат.ожидания = (" + confidenceInterval.get(0) + " ; " + confidenceInterval.get(1) + ")");
-        run.addBreak();
-        run.setText("Доверительный интервал для среднего квадратичного отклонения = (" + confidenceInterval.get(2) + " ; " + confidenceInterval.get(3) + ")");
-        run.addBreak();
+        textRun3.setText("7. Доверительный интервал для мат.ожидания = (" + confidenceInterval.get(0) + " ; " + confidenceInterval.get(1) + ")");
+        textRun3.addBreak();
+        textRun3.setText("Доверительный интервал для среднего квадратичного отклонения = (" + confidenceInterval.get(2) + " ; " + confidenceInterval.get(3) + ")");
+        textRun3.addBreak();
 
         System.out.println("8. Проверяем гипотезу о нормальном распределении: ");
-        run.setText("8. Проверяем гипотезу о нормальном распределении: ");
-        run.addBreak();
+        textRun3.setText("8. Проверяем гипотезу о нормальном распределении: ");
+        textRun3.addBreak();
         if (CheckHypothesis(averageValue, fixedVariance)){
-            System.out.println("Нет оснований отвергнуть нулевую гипотезу,генеральная совокупность из которой сделана выборка, распределена по нормальному закону");
-            run.setText("Нет оснований отвергнуть нулевую гипотезу,генеральная совокупность из которой сделана выборка, распределена по нормальному закону");
-            run.addBreak();
+            System.out.println("Нет оснований отвергнуть нулевую гипотезу, генеральная совокупность из которой сделана выборка, распределена по нормальному закону");
+            textRun3.setText("Нет оснований отвергнуть нулевую гипотезу, генеральная совокупность из которой сделана выборка, распределена по нормальному закону");
+            textRun3.addBreak();
         }
         else {
             System.out.println("Распределение ген совокупности не является нормальным");
-            run.setText("Распределение ген совокупности не является нормальным");
-            run.addBreak();
+            textRun3.setText("Распределение ген совокупности не является нормальным");
+            textRun3.addBreak();
         }
+
         try (FileOutputStream fileOut = new FileOutputStream("Отчет.docx")) {
             doc.write(fileOut);
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            try {
-                doc.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
+        try{
+            doc.close();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+
     }
 
     private double GaussFunc(double u){
-        return (1 / Math.sqrt(2 * Math.PI) * Math.exp(-1 * (Math.pow(u,2)/2)));
+        return ((1 / Math.sqrt(2 * Math.PI)) * Math.exp(-1 * (Math.pow(u,2)/2)));
     }
     private boolean CheckHypothesis(double averageValue, double fixedVariance){
         double Xview = 0, Xcritical = 11.07;
@@ -211,10 +240,10 @@ public class Statistic implements IOManager{
     }
     private ArrayList<Double> CalculateIntervalEstimation(double averageValue, double fixedVariance){
         double t = 1.655,q = 0.143;
-        double leftSideAverage = averageValue - t * (Math.sqrt(fixedVariance) / Math.sqrt(n));
-        double rightSideAverage = averageValue + t * (Math.sqrt(fixedVariance)  / Math.sqrt(n));
-        double leftSideVariance = q > 1 ? 0 : Math.sqrt(fixedVariance) * (1 - q);
-        double rightSideVariance = Math.sqrt(fixedVariance) * (1 + q);
+        double leftSideAverage = (double) Math.round((averageValue - t * (Math.sqrt(fixedVariance) / Math.sqrt(n)))*100)/100;
+        double rightSideAverage = (double) Math.round((averageValue + t * (Math.sqrt(fixedVariance)  / Math.sqrt(n)))*100)/100;
+        double leftSideVariance = q > 1 ? 0 : (double) Math.round(Math.sqrt(fixedVariance) * (1 - q) * 100)/100;
+        double rightSideVariance = (double) Math.round(Math.sqrt(fixedVariance) * (1 + q)*100)/100;
         return new ArrayList<>(Arrays.asList(leftSideAverage, rightSideAverage, leftSideVariance, rightSideVariance));
     }
     private double CalculateVariance(double averageValue){
@@ -322,6 +351,7 @@ public class Statistic implements IOManager{
             bar.setBarDirection(BarDirection.COL);
 
 
+
             try (FileOutputStream fileOut = new FileOutputStream("histogram.xlsx")) {
                 workbook.write(fileOut);
             } catch (IOException e) {
@@ -339,5 +369,4 @@ public class Statistic implements IOManager{
             e.printStackTrace();
         }
     }
-
 }
