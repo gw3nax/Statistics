@@ -1,9 +1,6 @@
 package org.example;
 
-import com.aspose.cells.*;
-import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xddf.usermodel.chart.*;
 import org.apache.poi.xssf.usermodel.*;
@@ -17,6 +14,7 @@ public class Statistic implements IOManager{
     private final ArrayList<Double> selection = new ArrayList<>();
     private final ArrayList<ArrayList<Double>> relativeFrequencies = new ArrayList<>();
     private final ArrayList<ArrayList<Double>> variationArray = new ArrayList<>();
+    private final ArrayList<ArrayList<ArrayList<Double>>> variationArrayOutput = new ArrayList<>();
     private final HashMap<Double, Integer> frequencies = new HashMap<>();
     int n;
     long m;
@@ -52,6 +50,29 @@ public class Statistic implements IOManager{
         titleRun.setText("Вариант: " + var);
         titleRun.addBreak();
 
+        XWPFParagraph startDataPar = doc.createParagraph();
+        XWPFRun startDataRun = startDataPar.createRun();
+
+        startDataRun.setFontSize(14);
+        startDataRun.setFontFamily("Times New Roman");
+        startDataRun.setText("0. Входные данные");
+
+        int numRows = (int) Math.ceil((double) selection.size() / 10);
+        int numCols = Math.min(10, selection.size());
+
+        XWPFTable startDataTable = doc.createTable(numRows, numCols);
+
+        for (int i = 0; i < numRows; i++) {
+            XWPFTableRow row = startDataTable.getRow(i); // Получаем текущую строку
+
+            for (int j = 0; j < numCols; j++) {
+                int index = i * 10 + j;
+                if (index < selection.size()) {
+                    XWPFTableCell cell = row.getCell(j); // Получаем ячейку в текущей строке и столбце j
+                    cell.setText(selection.get(index).toString()); // Устанавливаем текст ячейки
+                }
+            }
+        }
 
         XWPFParagraph par = doc.createParagraph();
         XWPFRun run = par.createRun();
@@ -76,20 +97,13 @@ public class Statistic implements IOManager{
         run.addBreak();
 
 
-        System.out.println("3. Размах выборки = " + Math.round((maxX - minX)*100)/100);
-        run.setText("3. Размах выборки = " + Math.round((maxX - minX)*100)/100);
+        System.out.println("3. Размах выборки = " + (double) Math.round((maxX - minX)*100)/100);
+        run.setText("3. Размах выборки = " + (double) Math.round((maxX - minX)*100)/100);
         run.addBreak();
-
 
         CalculateFrequencies();
-        System.out.println("4. Медиана = " + CalculateMedian() + "\n   " +
-                "Мода = " + CalculateModa());
-        run.setText("4. Медиана = " + CalculateMedian());
-        run.addBreak();
-        run.setText("Мода = " + CalculateModa());
-        run.addBreak();
 
-        h = (double) Math.round((maxX - minX) * 100 / m) / 100;
+        h = Math.ceil((maxX - minX) * 100 / m) / 100;
         makeVarArray();
         System.out.println("5. Интервальный вариационный ряд:\n   " +
                 "Число интервалов = " + m + "\n   " +
@@ -105,15 +119,18 @@ public class Statistic implements IOManager{
         run.setText("Длина интервала = " + h);
         run.addBreak();
         run.setText("Вариационный ряд:");
-        run.addBreak();
 
+        XWPFTable table = doc.createTable(variationArrayOutput.get(0).size(), variationArrayOutput.size());
 
-        XWPFTable table = doc.createTable(variationArray.get(0).size(), variationArray.size());
-
-        for (int row = 0; row < variationArray.get(0).size(); row++) {
-            for (int col = 0; col < variationArray.size(); col++) {
+        for (int row = 0; row < variationArrayOutput.get(0).size(); row++) {
+            for (int col = 0; col < variationArrayOutput.size(); col++) {
                 XWPFTableCell cell = table.getRow(row).getCell(col);
-                cell.setText(variationArray.get(col).get(row).toString());
+                if (row == 0){
+                    cell.setText(variationArrayOutput.get(col).get(row).toString());
+                }
+                else{
+                    cell.setText(variationArray.get(col).get(row).toString());
+                }
             }
         }
 
@@ -134,14 +151,18 @@ public class Statistic implements IOManager{
                 """);
 
         textRun2.setText("Относительные частоты:");
-        textRun2.addBreak();
 
         XWPFTable table1 = doc.createTable(relativeFrequencies.get(0).size(), relativeFrequencies.size());
 
-        for (int row = 0; row < relativeFrequencies.get(0).size(); row++) {
-            for (int col = 0; col < relativeFrequencies.size(); col++) {
+        for (int row = 0; row < variationArrayOutput.get(0).size(); row++) {
+            for (int col = 0; col < variationArrayOutput.size(); col++) {
                 XWPFTableCell cell = table1.getRow(row).getCell(col);
-                cell.setText(relativeFrequencies.get(col).get(row).toString());
+                if (row == 0){
+                    cell.setText(variationArrayOutput.get(col).get(row).toString());
+                }
+                else{
+                    cell.setText(relativeFrequencies.get(col).get(row).toString());
+                }
             }
         }
 
@@ -164,22 +185,35 @@ public class Statistic implements IOManager{
         XWPFParagraph textParagraph3 = doc.createParagraph();
         XWPFRun textRun3 = textParagraph3.createRun();
 
+        textRun3.setFontFamily("Times New Roman");
+        textRun3.setFontSize(14);
+
         System.out.println("Строим гистограмму относительных частот: ");
         textRun3.setText("Гистограмма относительных частот:");
         textRun3.addBreak();
 
         drawCharts(relativeFrequencies);
         System.out.println("6. Вычисляем точечные оценки параметров распределения: ");
-        textRun3.setText("Относительные частоты:");
+        textRun3.setText("6. Вычисляем точечные оценки параметров распределения: ");
         textRun3.addBreak();
 
         double averageValue = (double) Math.round(CalculateAverageValue()*100)/100;
         double variance = (double) Math.round(CalculateVariance(averageValue)*100)/100;
         double fixedVariance =(double) Math.round(variance * ((double)n/(n-1))*100)/100;
-        System.out.println("Выборочное среднее = " + averageValue + "\n" +
+
+        double mediana = CalculateMedian();
+        double moda = CalculateModa();
+
+        System.out.println("Медиана = " + mediana + "\n" +
+                "Мода = " + moda + "\n" +
+                "Выборочное среднее = " + averageValue + "\n" +
                 "Дисперсия = " + variance + "\n" +
                 "Исправленная выборочная дисперсия = " + fixedVariance);
 
+        textRun3.setText("Медиана = " + mediana);
+        textRun3.addBreak();
+        textRun3.setText("Мода = " + moda);
+        textRun3.addBreak();
         textRun3.setText("Выборочное среднее = " + averageValue);
         textRun3.addBreak();
         textRun3.setText("Дисперсия = " + variance);
@@ -210,7 +244,7 @@ public class Statistic implements IOManager{
             textRun3.addBreak();
         }
 
-        try (FileOutputStream fileOut = new FileOutputStream("Отчет.docx")) {
+        try (FileOutputStream fileOut = new FileOutputStream("Отчет статистика " + PersonName + " " + GroupName + ".docx")) {
             doc.write(fileOut);
         } catch (IOException e) {
             e.printStackTrace();
@@ -242,7 +276,7 @@ public class Statistic implements IOManager{
         double t = 1.655,q = 0.143;
         double leftSideAverage = (double) Math.round((averageValue - t * (Math.sqrt(fixedVariance) / Math.sqrt(n)))*100)/100;
         double rightSideAverage = (double) Math.round((averageValue + t * (Math.sqrt(fixedVariance)  / Math.sqrt(n)))*100)/100;
-        double leftSideVariance = q > 1 ? 0 : (double) Math.round(Math.sqrt(fixedVariance) * (1 - q) * 100)/100;
+        double leftSideVariance = (double) Math.round(Math.sqrt(fixedVariance) * (1 - q) * 100)/100;
         double rightSideVariance = (double) Math.round(Math.sqrt(fixedVariance) * (1 + q)*100)/100;
         return new ArrayList<>(Arrays.asList(leftSideAverage, rightSideAverage, leftSideVariance, rightSideVariance));
     }
@@ -272,7 +306,12 @@ public class Statistic implements IOManager{
         return Collections.max(selection);
     }
     private double CalculateMedian(){
-        return selection.get(selection.size()/2);
+        int accumulatedFrequencies = 0, i = 0;
+        while (accumulatedFrequencies <= n/2){
+            accumulatedFrequencies += variationArray.get(i).get(1);
+            i++;
+        }
+        return variationArray.get(i-1).get(0);
     }
     private double CalculateModa(){
         return Collections.max(frequencies.entrySet(), Map.Entry.comparingByValue()).getKey();
@@ -283,21 +322,23 @@ public class Statistic implements IOManager{
 
         Set<Double> unique = new TreeSet<>(selection);
         for (Double value : unique) {
-            currentIntervalEnd = currentIntervalStart + h;
+            currentIntervalEnd = (double) Math.round((currentIntervalStart + h)*100)/100;
             if (value >= currentIntervalStart && value < currentIntervalEnd || cnt == m) {
                 freqSum += frequencies.get(value);
             } else {
                 double mid = (double) Math.round((currentIntervalStart + currentIntervalEnd) / 2 * 100) / 100;
                 relativeFrequencies.add(new ArrayList<>(Arrays.asList(mid, (double) Math.round(((double) freqSum) / n * 100) / 100)));
                 variationArray.add(new ArrayList<>(Arrays.asList(mid, (double) freqSum)));
+                variationArrayOutput.add(new ArrayList<>(Arrays.asList(new ArrayList<>(Arrays.asList(currentIntervalStart, currentIntervalEnd)), new ArrayList<>(Arrays.asList((double) Math.round(((double) freqSum) / n * 100) / 100)))));
                 currentIntervalStart = currentIntervalEnd;
                 freqSum = frequencies.get(value);
                 cnt++;
             }
         }
-        double mid = (double) Math.round((currentIntervalStart + currentIntervalEnd + h) / 2 * 100) / 100;
+        double mid = (double) Math.round((currentIntervalStart + currentIntervalEnd) / 2 * 100) / 100;
         variationArray.add(new ArrayList<>(Arrays.asList(mid, (double) freqSum)));
         relativeFrequencies.add(new ArrayList<>(Arrays.asList(mid, (double) Math.round(((double) freqSum) / n * 100) / 100)));
+        variationArrayOutput.add(new ArrayList<>(Arrays.asList(new ArrayList<>(Arrays.asList(currentIntervalStart, currentIntervalEnd)), new ArrayList<>(Arrays.asList((double) Math.round(((double) freqSum) / n * 100) / 100)))));
     }
     @Override
     public void readData(String fileName){
@@ -345,12 +386,11 @@ public class Statistic implements IOManager{
             XDDFChartData data = chart.createData(ChartTypes.BAR, bottomAxis, leftAxis);
             XDDFChartData.Series series1 = data.addSeries(xs, ys);
             series1.setTitle("Частота", null);
-            data.setVaryColors(true);
+            data.setVaryColors(false);
             chart.plot(data);
             XDDFBarChartData bar = (XDDFBarChartData) data;
             bar.setBarDirection(BarDirection.COL);
-
-
+            bar.setGapWidth(2);
 
             try (FileOutputStream fileOut = new FileOutputStream("histogram.xlsx")) {
                 workbook.write(fileOut);
